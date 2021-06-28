@@ -73,7 +73,13 @@ class S256Field(FieldElement):
     def __repr__(self):
         return '{:x}'.format(self.num).zfill(64)
 
+    def sqrt(self):
+        return self ** ((P+1) // 4)
+
 #
+
+A = S256Field(0)
+B = S256Field(7)
 
 class Point:
     # y^2 = x^3 + ax + b
@@ -169,6 +175,28 @@ N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
 
 class S256Point(Point):
 
+    @classmethod
+    def parse(self, sec_bin):
+        if sec_bin[0] == 0x04:
+            x = int.from_bytes(sec_bin[1:33], 'big')
+            y = int.from_bytes(sec_bin[33:65], 'big')
+            return S256Point(x, y)
+        else:
+            x_ = int.from_bytes(sec_bin[1:], 'big')
+            x = S256Field(x_)
+            y = (x**3 + B).sqrt()
+            if y.num % 2 == 0:
+                even_y = y
+                odd_y = S256Field(P - y.num)
+            else:
+                odd_y = y
+                even_y = S256Field(P - y.num)
+            if sec_bin[0] == 0x02:
+                return S256Point(x, even_y)
+            else:
+                return S256Point(x, odd_y)
+
+
     def __init__(self, x, y, a=None, b=None):
         a = S256Field(0)
         b = S256Field(7)
@@ -189,6 +217,16 @@ class S256Point(Point):
         v = (sig.r * s_inv) % N
         comb = u * G + v * self
         return comb.x.num == sig.r
+
+    def sec(self, compressed=True):
+        if compressed and self.y.num % 2 == 0:
+            return b'\x02' + self.x.num.to_bytes(32, 'big')
+        elif compressed and self.y.num % 2 == 1:
+            return b'\x03' + self.x.num.to_bytes(32, 'big')
+        else:
+            return b'\x04' + \
+                    self.x.num.to_bytes(32, 'big') + \
+                    self.y.num.to_bytes(32, 'big')
 #
 
 G = S256Point(Gx, Gy)
