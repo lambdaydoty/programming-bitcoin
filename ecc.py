@@ -71,7 +71,8 @@ class Point:
             return
         elif y**2 == x**3 + a*x + b:
             return
-        raise ValueError()
+        error = 'Not a valid Point: (x,y,a,b)=({},{},{},{})'.format(x, y, a, b)
+        raise ValueError(error)
 
     def __eq__(self, other):
         return self.x == other.x and \
